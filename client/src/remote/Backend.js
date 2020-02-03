@@ -24,7 +24,7 @@ export default class Backend {
   }
 
   /**
-   * Send a message to the backend, awaiting the answer,
+   * Send a message to the backend, awaiting the response,
    * resolved as a promise.
    *
    * @param {Event} event

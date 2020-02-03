@@ -245,9 +245,9 @@ export class App extends PureComponent {
       return tab;
     }
 
-    const answer = await this.showDialog(getContentChangedDialog());
+    const { button } = await this.showDialog(getContentChangedDialog());
 
-    if (answer === 'ok') {
+    if (button === 'ok') {
       const updatedFile = await fileSystem.readFile(file.path);
 
       return this.updateTab(tab, {
@@ -1717,6 +1717,12 @@ export class App extends PureComponent {
     return config.get(key, file, ...args);
   }
 
+  setConfig = (key, ...args) => {
+    const config = this.getGlobal('config');
+
+    return config.set(key, ...args);
+  }
+
   getPlugins = type => {
     return this.getGlobal('plugins').get(type);
   }
@@ -1909,6 +1915,7 @@ export class App extends PureComponent {
                     onAction={ this.triggerAction }
                     onModal={ this.openModal }
                     getConfig={ this.getConfig }
+                    setConfig={ this.setConfig }
                     getPlugins={ this.getPlugins }
                     ref={ this.tabRef }
                   />

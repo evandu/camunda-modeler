@@ -51,8 +51,15 @@ import generateImage from '../../util/generateImage';
 
 import Metadata from '../../../util/Metadata';
 
+import { findUsages as findNamespaceUsages } from '../util/namespace';
+
+import { migrateTo13 } from '@bpmn-io/dmn-migrate';
 
 const EXPORT_AS = [ 'png', 'jpeg', 'svg' ];
+
+const NAMESPACE_URL_DMN11 = 'http://www.omg.org/spec/DMN/20151101/dmn.xsd';
+
+const CONFIG_KEY = 'editor.askDmnMigration';
 
 
 export class DmnEditor extends CachedComponent {
@@ -394,7 +401,11 @@ export class DmnEditor extends CachedComponent {
     return xml !== lastXML;
   }
 
-  importXML() {
+  async importXML() {
+    const {
+      xml
+    } = this.props;
+
     const {
       modeler
     } = this.getCached();
@@ -403,7 +414,55 @@ export class DmnEditor extends CachedComponent {
       importing: true
     });
 
-    modeler.importXML(this.props.xml, this.ifMounted(this.handleImport));
+    const importedXML = await this.handleMigration(xml);
+
+    if (!importedXML) {
+      this.props.onAction('close-tab');
+
+      return;
+    }
+
+    modeler.importXML(importedXML, this.ifMounted(this.handleImport));
+  }
+
+  handleMigration = async (xml) => {
+    const used = findNamespaceUsages(xml, NAMESPACE_URL_DMN11);
+
+    if (!used) {
+      return xml;
+    }
+
+    const askDmnMigration = await this.props.getConfig(CONFIG_KEY);
+
+    if (askDmnMigration !== false) {
+      const shouldMigrate = await this.shouldMigrate();
+
+      if (!shouldMigrate) {
+        return null;
+      }
+    }
+
+    const {
+      onContentUpdated
+    } = this.props;
+
+    const migratedXML = await migrateTo13(xml);
+
+    onContentUpdated(migratedXML);
+
+    return migratedXML;
+  }
+
+  async shouldMigrate() {
+    const { onAction } = this.props;
+
+    const { button, checkboxChecked } = await onAction('show-dialog', getMigrationDialog());
+
+    if (button === 'yes' && checkboxChecked) {
+      this.props.setConfig(CONFIG_KEY, false);
+    }
+
+    return button === 'yes';
   }
 
   checkSheetChange(prevProps) {
@@ -737,4 +796,20 @@ function getSheetName(view) {
 
 function isCachedStateChange(prevProps, props) {
   return prevProps.cachedState !== props.cachedState;
+}
+
+function getMigrationDialog() {
+  return {
+    type: 'warning',
+    title: 'Deprecated DMN 1.1 Diagram Detected',
+    buttons: [
+      { id: 'cancel', label: 'Cancel' },
+      { id: 'yes', label: 'Yes' }
+    ],
+    message: 'Would you like to migrate your diagram to DMN 1.3?',
+    detail: [
+      'Only DMN 1.3 diagrams can be opened with Camunda Modeler v4.0.0 or later.',
+    ].join('\n'),
+    checkboxLabel: 'Do not ask again.'
+  };
 }

@@ -52,7 +52,7 @@ import applyDefaultTemplates from './modeler/features/apply-default-templates/ap
 import {
   findUsages as findNamespaceUsages,
   replaceUsages as replaceNamespaceUsages
-} from './util/namespace';
+} from '../util/namespace';
 
 import configureModeler from './util/configure';
 
@@ -302,10 +302,9 @@ export class BpmnEditor extends CachedComponent {
 
 
   async shouldConvert() {
+    const { button } = await this.props.onAction('show-dialog', getNamespaceDialog());
 
-    const answer = await this.props.onAction('show-dialog', getNamespaceDialog());
-
-    return answer === 'yes';
+    return button === 'yes';
   }
 
   handleImport = (error, warnings) => {
